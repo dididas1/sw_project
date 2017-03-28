@@ -8,6 +8,4 @@
 		<result property="compTel" column="comp_tel"/>
 		<result property="compIsExist" column="comp_isExist"/>
 	</resultMap>
-	
-	
 </mapper>

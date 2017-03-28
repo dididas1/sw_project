@@ -89,7 +89,7 @@ CREATE TABLE sale (
 
 #### Create View View_Sale_Detail####
 CREATE VIEW view_sale_detail AS
-   SELECT sale_code,sw_code,
+   SELECT sale_code,
 /*총판매금액*/   sale_price * sale_amount AS total_sale_price,
 /*총공급금액*/   supply_price * sale_amount AS total_supply_price,
 /*마진액*/      (sale_price * sale_amount) - (supply_price*sale_amount) AS margin,    
@@ -98,6 +98,7 @@ CREATE VIEW view_sale_detail AS
 /*미수금*/      (sale_price * sale_amount) * !isDeposit AS receivablePrice
    FROM sale;
 SELECT * FROM view_sale_detail;
+
    SELECT * FROM sale;
 SELECT sale_code,
 /*총판매금액*/   @total_saleprice   := sale_price * sale_amount total_sale_price,
@@ -146,22 +147,27 @@ INSERT INTO software(sw_code,group_code,sw_name,sale_price,sw_inven,sw_issale) V
 	("SW007","GR", "포토샵",	1519000, 400,   FALSE),
 	("SW008","ED", "오토캐드",	978000,	 2,	    FALSE),
 	("SW009","GM", "인디자인", 	218040,	 4000,  FALSE),
-	("SW010","OF", "windows10",	333450,	 40000, TRUE);
+	("SW010","OF", "windows10",	333450,	 40000, TRUE),
+	("SW011", "OF" ,"바람의제국" ,40000, 20000, true);
  
 -- 납품현황입력
-INSERT INTO delivery(del_code, comp_code, sw_code, supply_price, supply_amount, order_date, del_isExist) VALUES
+INSERT INTO delivery(del_code, comp_code, sw_code, supply_price, supply_amount, order_date, del_isExist) values 
 	("DL001", "SC001", "SW001", 20000, 100, now(), TRUE),
-	("DL002", "SC002", "SW002", 30000, 200, now(), FALSE),
-	("DL003", "SC003", "SW003", 30000, 100, now(), FALSE),
+	("DL002", "SC002", "SW002", 30000, 200, now(), TRUE),
+	("DL003", "SC003", "SW003", 30000, 100, now(), TRUE),
 	("DL004", "SC004", "SW004", 17000, 150, now(), FALSE),
 	("DL005", "SC005", "SW005", 25000, 200, now(), TRUE),
 	("DL006", "SC006", "SW006", 2000,  100, now(), FALSE),
 	("DL007", "SC001", "SW007", 5000,  200, now(), FALSE),
-	("DL008", "SC002", "SW008", 30000, 100, now(), FALSE),
-	("DL009", "SC003", "SW009", 17000, 150, now(), FALSE),
+	("DL008", "SC002", "SW008", 30000, 100, now(), TRUE),
+	("DL009", "SC003", "SW009", 17000, 150, now(), TRUE),
 	("DL010", "SC004", "SW010", 25000, 200, now(), FALSE),
-	("DL011", "SC001", "SW001", 25000, 200, now(), TRUE);
-
+	("DL011", "SC006", "SW011", 25000, 200, now(), FALSE);
+	
+	
+	
+select * from software;
+	
 -- 거래내역 샘플데이터 입력
 INSERT INTO sale(sale_code, clnt_code, sw_code, sale_amount, 
 				isdeposit, order_date, supply_price, sale_price, sale_isExist) VALUES  
@@ -176,9 +182,9 @@ INSERT INTO sale(sale_code, clnt_code, sw_code, sale_amount,
 	("SL009","CL006","SW009",2,  TRUE, "2010-10-04", 32000  , 48000,   FALSE),
 	("SL010","CL004","SW010",320,TRUE, "2010-10-04", 980000 , 1519000, FALSE),
 	("SL011","CL004","SW001",100,TRUE, "2010-10-04", 25000  , 40000,   TRUE),
-	("SL012","CL001","SW001",100,TRUE, "2010-10-04", 25000  , 40000,   TRUE),
-	("SL013","CL002","SW002",100,TRUE, "2010-10-04", 50000  , 60000 ,  TRUE)
-	;
+	("SL012","CL001","SW011",100,TRUE, "2010-10-04", 25000  , 40000,   TRUE);
+	
+			
 
 SELECT * FROM client;
 SELECT * FROM sale;
@@ -187,128 +193,6 @@ SELECT * FROM software;
 SELECT * FROM supply_company;
 SELECT * FROM category;
 
-#### 고객별 판매현황조회 ####
--- 고객상호명 품목명 주문수량 입금여부 단가 매출금 미수금
-
-SELECT cl.clnt_name, sw.sw_name, s.sale_amount, s.isdeposit, sw.sale_price,
-/*매출금*/ 	@salePrice  := s.sale_amount * sw.sale_price salePrice, 
-/*미수금*/	@receivable := @salePrice * !s.isDeposit receivablePrice
-	FROM client cl JOIN sale s ON cl.clnt_code = s.clnt_code 
-				   JOIN software sw ON s.sw_code = sw.sw_code
-	WHERE cl.clnt_name="아산시스템";
-
-SELECT cl.clnt_name, sw.sw_name, s.sale_amount, s.isdeposit, sw.sale_price,
-/*매출금*/ 	@salePrice  := s.sale_amount * sw.sale_price salePrice, 
-/*미수금*/	@receivable := @salePrice * !s.isDeposit receivablePrice
-	FROM client cl JOIN sale s ON cl.clnt_code = s.clnt_code 
-				   JOIN software sw ON s.sw_code = sw.sw_code
-	WHERE cl.clnt_name=#{clntName};
-
-
-
-#### 소프트웨어별 판매현황조회 ####
--- 품목명 분류 공급회사명 공급금액 판매금액 판매이윤
-
-SELECT sw.sw_name, ca.group_name, su.comp_name,
-/*공급금액*/ @total_supply_price := SUM(s.sale_amount* dv.supply_price) total_supply_price,
-/*판매금액*/ @total_price 		 := SUM(s.sale_amount * sw.sale_price) total_price,
-/*판매이윤*/ @margin 			 := SUM(s.sale_amount * sw.sale_price - s.sale_amount* dv.supply_price) margin
-	FROM software sw JOIN category ca ON sw.group_code = ca.group_code 
-					 JOIN delivery dv ON sw.sw_code=dv.sw_code 
-					 JOIN supply_company su ON su.comp_code = dv.comp_code
-					 JOIN sale s ON s.sw_code = sw.sw_code
-	WHERE sw.sw_name ="바람의제국";
-	
-SELECT sw.sw_name, ca.group_name , su.comp_name,
-/*공급금액*/ @total_supply_price := SUM(s.sale_amount* dv.supply_price) total_supply_price,
-/*판매금액*/ @total_price 		 := SUM(s.sale_amount * sw.sale_price) total_price,
-/*판매이윤*/ @margin 			 := SUM(s.sale_amount * sw.sale_price - s.sale_amount* dv.supply_price) margin
-	FROM software sw JOIN category ca ON sw.group_code = ca.group_code 
-					 JOIN delivery dv ON sw.sw_code=dv.sw_code 
-					 JOIN supply_company su ON su.comp_code= dv.comp_code
-					 JOIN sale s ON s.sw_code= sw.sw_code
-	WHERE sw.sw_name =#{swname};
-
-
-
-
-#### 날짜별 판매현황조회 ####
--- 날짜 주문번호  상호 품명 수량 입금여부 
-
-SELECT s.order_date, s.sale_code, cl.clnt_name, sw.sw_name, s.sale_amount, s.isdeposit
-	FROM sale s JOIN client cl ON s.clnt_code = cl.clnt_code JOIN software sw ON s.sw_code = sw.sw_code
-	WHERE s.order_date BETWEEN "2009-12-12" AND "2009-12-14"
-	ORDER BY s.sale_code;
-	
-SELECT s.order_date, s.sale_code, cl.clnt_name, sw.sw_name, s.sale_amount, s.isdeposit
-	FROM sale s JOIN client cl ON s.clnt_code = cl.clnt_code JOIN software sw ON s.sw_code = sw.sw_code
-	WHERE s.order_date BETWEEN #{date} AND #{date}
-	ORDER BY s.sale_code;
-
-
-
-	
-#### 카테고리별 판매현황조회 ####
--- 그룹이름 총판매가격 총판매수량
-
-SELECT c.group_name,
-/*총판매가격*/	@c_salePrice := SUM(s.sale_amount * sw.sale_price) c_salePrice, 
-/*총판매수량*/	@c_amount 	 := SUM(s.sale_amount) c_amount
-FROM category c JOIN software sw ON c.group_code= sw.group_code 
-				JOIN sale s ON sw.sw_code=s.sw_code
-GROUP BY c.group_name;
-
-
-
-
-#### SW 전체판매현황 보고서 ####
--- 날짜 분류 품목명 주문번호 주문수량 판매금액
- 
-SELECT s.order_date, c.group_name, sw.sw_name, s.sale_code, sale_amount,
-/*판매금액*/	@t_sale_price := sw.sale_price* s.sale_amount t_sale_price
-	FROM sale s JOIN software sw ON s.sw_code=sw.sw_code 
-				JOIN category c ON sw.group_code= c.group_code
-	ORDER BY s.order_date DESC;
-
-
--- 총합계
-SELECT @total_sale_price := SUM(sw.sale_price * s.sale_amount) total_sale_price
-	FROM sale s JOIN software sw ON s.sw_code=sw.sw_code 
-				JOIN category c ON sw.group_code= c.group_code;
-
-
-
-
-				
-#### 거래명세서 ####
--- 공급회사명 날짜 고객명 품명 단가 주문수량 총판매금액 세금 총납품금액
-
-SELECT su.comp_name, s.order_date, c.clnt_name, sw.sw_name, sw.sale_price, s.sale_amount,
-/*총판매금액*/	@total_saleprice := sw.sale_price * s.sale_amount total_sale_price,
-/*세금*/		@tax 			 := @total_saleprice * 0.1 tax,
-/*총납품금액*/	@tax_saleprice 	 := @tax + @total_saleprice tax_saleprice
-	FROM supply_company su JOIN delivery dl ON su.comp_code = dl.comp_code 
-						   JOIN software sw ON dl.sw_code   = sw.sw_code 
-						   JOIN sale s 		ON sw.sw_code   = s.sw_code 
-						   JOIN client c 	ON s.clnt_code  = c.clnt_code
-	ORDER BY su.comp_name;
- 
--- 총납품금액 합계
-SELECT @tax_saleprice := SUM(sw.sale_price* s.sale_amount) * 1.1 tax_saleprice
-	FROM supply_company su JOIN delivery dl ON su.comp_code = dl.comp_code 
-						   JOIN software sw ON dl.sw_code = sw.sw_code 
-						   JOIN sale s ON sw.sw_code = s.sw_code 
-						   JOIN client c ON s.clnt_code = c.clnt_code ;
-
-						   
-
-
-#### 그래프출력 ####
--- 주문현황 (고객이름 , 고객별 총주문갯수)
-
-SELECT c.clnt_name, SUM(sale_amount) 
-	FROM sale s JOIN client c ON s.clnt_code=c.clnt_code
-GROUP BY c.clnt_name;
 
 ############################ Client ###########################
 
@@ -521,15 +405,11 @@ UPDATE sale SET sale_isExist= #{saleDelete}
 	WHERE sale_code=#{saleCode};
 
 
-
-
-
-   
        
        #### 고객별 판매현황조회 ####
 -- 고객상호명 품목명 주문수량 입금여부 단가 매출금 미수금
 
-SELECT cl.clnt_name, sw.sw_name, s.sale_amount, s.isdeposit, s.sale_price,
+select cl.clnt_name, sw.sw_name, s.sale_amount, s.isdeposit, s.sale_price,
 /*매출금*/    sd.total_sale_price, 
 /*미수금*/   sd.receivablePrice
    FROM client cl JOIN sale s ON cl.clnt_code = s.clnt_code 
@@ -537,6 +417,8 @@ SELECT cl.clnt_name, sw.sw_name, s.sale_amount, s.isdeposit, s.sale_price,
                JOIN view_sale_detail sd ON sd.sale_code = s.sale_code
    WHERE cl.clnt_code="CL001";
 
+   select * from sale;
+   
 SELECT cl.clnt_name, sw.sw_name, s.sale_amount, s.isdeposit, s.sale_price,
 /*매출금*/    sd.total_sale_price, 
 /*미수금*/   sd.receivablePrice
@@ -559,21 +441,24 @@ SELECT  distinct s.sale_code,sw.sw_name, c.group_name , su.comp_name,
    join view_sale_detail vs on s.sale_code= vs.sale_code 
    join software sw on s.sw_code= sw.sw_code
    join category c on c.group_code= sw.group_code 
-   join delivery d on vs.sw_code= d.sw_code 
-   join supply_company su on d.comp_code= su.comp_code;
+   join delivery d on d.sw_code= sw.sw_code
+   join supply_company su on d.comp_code= su.comp_code
+   where sw.sw_code="SW001";
    
+   select * from sale;
+   se
    
   
    
-SELECT sw.sw_name, ca.group_name, su.comp_name,
+SELECT distinct s.sale_code,sw.sw_name, ca.group_name, su.comp_name,
 /*공급금액*/ @total_supply_price := SUM(sd.total_supply_price) total_supply_price,
 /*판매금액*/ @total_price        := SUM(sd.total_sale_price) total_price,
 /*판매이윤*/ @margin           := SUM(sd.margin) margin
   FROM sale s 
-   join view_sale_detail vs on s.sale_code= vs.sale_code 
+    join view_sale_detail vs on s.sale_code= vs.sale_code 
    join software sw on s.sw_code= sw.sw_code
    join category c on c.group_code= sw.group_code 
-   join delivery d on vs.sw_code= d.sw_code 
+   join delivery d on d.sw_code= sw.sw_code
    join supply_company su on d.comp_code= su.comp_code
    WHERE sw.sw_code =#{swCode};
 
@@ -633,7 +518,7 @@ SELECT sum(total_sale_price)
 #### 거래명세서 ####
 -- 공급회사명 날짜 고객명 품명 단가 주문수량 총판매금액 세금 총납품금액
 
-SELECT distinct sd.sale_code,comp_name, s.order_date, c.clnt_name, sw.sw_name, s.sale_price, s.sale_amount,
+SELECT  sd.sale_code,comp_name, s.order_date, c.clnt_name, sw.sw_name, s.sale_price, s.sale_amount,
 /*총판매금액*/   sd.total_sale_price, 
 /*세금*/      sd.tax,   
 /*총납품금액*/   sd.tax_saleprice
@@ -643,7 +528,6 @@ SELECT distinct sd.sale_code,comp_name, s.order_date, c.clnt_name, sw.sw_name, s
                      JOIN client c    ON s.clnt_code  = c.clnt_code
                         JOIN view_sale_detail sd ON sd.sale_code = s.sale_code
    ORDER BY su.comp_name;
- 
 -- 총납품금액 합계
 
  SELECT sum(tax_saleprice) FROM view_sale_detail;
@@ -656,20 +540,12 @@ SELECT c.clnt_name, SUM(sale_amount)
    FROM sale s JOIN client c ON s.clnt_code=c.clnt_code
 GROUP BY c.clnt_name;
    
+   
+   
 
--- 납품 테이블 업데이트시 수량조정
-DELIMITER $$
-CREATE TRIGGER tri_software_after_update_delivery
-    AFTER update 
-    ON delivery
-    FOR EACH ROW
-BEGIN
-  	if  NEW.del_isExist = false then
-        update software set sw_inven = sw_inven-new.supply_amount
-        where sw_code= new.sw_code;
-    END IF;
-end $$
-DELIMITER ;
+$$$$$ 트리거 $$$$$
+
+
 
 -- 납품 테이블 인서트시 수량조정
 DELIMITER $$
@@ -678,7 +554,7 @@ CREATE TRIGGER tri_software_after_insert_delivery
     ON delivery
     FOR EACH ROW
 BEGIN
-    IF NEW.del_isExist = '1' THEN
+    IF NEW.del_isExist = false THEN
         update software set sw_inven = sw_inven+new.supply_amount
         where sw_code= new.sw_code;
     END IF;
@@ -692,12 +568,30 @@ CREATE TRIGGER tri_software_after_insert_sale
     ON sale
     FOR EACH ROW
 BEGIN
-    IF NEW.sale_isExist = '1' THEN
+    IF NEW.sale_isExist = true THEN
         update software set sw_inven = sw_inven-new.sale_amount
         where sw_code= new.sw_code;
      END IF;
 end $$
 DELIMITER ;
+
+-- 납품 테이블 업데이트시 수량조정
+DELIMITER $$
+CREATE TRIGGER tri_software_after_update_delivery
+    AFTER update 
+    ON delivery
+    FOR EACH ROW
+BEGIN
+  	if  NEW.del_isExist = false then
+        update software set sw_inven = sw_inven-new.supply_amount
+        where sw_code= new.sw_code;
+        elseif new.del_isExist=   true then
+          update software set sw_inven = sw_inven+new.supply_amount
+        where sw_code= new.sw_code;
+    END IF;
+end $$
+DELIMITER ;
+
 
 -- 판매테이블 업데이트시 수량조절
 DELIMITER $$
@@ -706,26 +600,16 @@ CREATE TRIGGER tri_software_after_update_sale
     ON sale
     FOR EACH ROW
 BEGIN
-   IF  NEW.sale_isExist = '0' then
+   IF  NEW.sale_isExist = false then
         update software set sw_inven = sw_inven+new.sale_amount
+        where sw_code= new.sw_code;
+        elseif new.sale_isExist= true then
+          update software set sw_inven = sw_inven-new.sale_amount
         where sw_code= new.sw_code;
     END IF;
 end $$
 DELIMITER ;
 
-INSERT INTO sale(sale_code, clnt_code, sw_code, sale_amount, isdeposit, order_date, supply_price, sale_price, sale_isExist) VALUES  
-	("SL001","CL001","SW001",25, TRUE, "2009-12-13", 25000  , 40000,   TRUE);
-select * from software where sw_code="SW001";
-select * from delivery;
-	
-INSERT INTO software(sw_code,group_code,sw_name,sale_price,sw_inven,sw_issale) values ("SW011","GM", "바람의제국",40000,   2000,  TRUE);
 
-INSERT INTO delivery(del_code, comp_code, sw_code, supply_price, supply_amount, order_date, del_isExist) VALUES
-	("DL012", "SC001", "SW001", 20000, 200, now(), true);
 
-delete from delivery where del_code="DL012";
 
-UPDATE delivery
-SET del_isExist=false
-WHERE del_code='DL012';
-	
